@@ -210,6 +210,16 @@ def test_plot_density_discrete_combinedims(discrete_model):
     assert axes.size == 2
 
 
+def test_plot_separation_y_hat_none_invalid():
+    """Test case where y_hat is None but y is not a string, should raise ValueError."""
+    idata = load_arviz_data("classification10d")
+    y = 404
+    y_hat = None
+
+    with pytest.raises(ValueError, match="y_hat cannot be None if y is not a str"):
+        plot_separation(idata=idata, y=y, y_hat=y_hat)
+
+
 @pytest.mark.parametrize(
     "kwargs",
     [
