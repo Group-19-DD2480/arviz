@@ -210,13 +210,54 @@ def test_plot_density_discrete_combinedims(discrete_model):
     assert axes.size == 2
 
 
+def test_plot_separation_invalid_idata():
+    """Should raise ValueError if idata is not None and not an InferenceData object."""
+    idata = 123
+    y = np.array([1, 1, 1])
+    y_hat = np.array([0.1, 0.1, 0.1])
+
+    with pytest.raises(ValueError, match="idata must be of type InferenceData or None"):
+        plot_separation(idata=idata, y=y, y_hat=y_hat)
+
+
+def test_plot_separation_invalid_y_y_hat():
+    """Should raise ValueError if y and y_hat are not arrays when idata is None."""
+    y = "not an array"
+    y_hat = None
+
+    with pytest.raises(
+        ValueError, match="y and y_hat must be array or DataArray when idata is None"
+    ):
+        plot_separation(idata=None, y=y, y_hat=y_hat)
+
+
 def test_plot_separation_y_hat_none_invalid():
-    """Test case where y_hat is None but y is not a string, should raise ValueError."""
+    """Should raise ValueError if y_hat is None but y is not a string."""
     idata = load_arviz_data("classification10d")
     y = 404
     y_hat = None
 
     with pytest.raises(ValueError, match="y_hat cannot be None if y is not a str"):
+        plot_separation(idata=idata, y=y, y_hat=y_hat)
+
+
+def test_plot_separation_invalid_y():
+    """Should raise ValueError if y is not an array, DataArray, or string."""
+    idata = load_arviz_data("classification10d")
+    y = 404
+    y_hat = np.array([0.1, 0.1, 0.1])
+
+    with pytest.raises(ValueError, match="y must be of types array, DataArray or str"):
+        plot_separation(idata=idata, y=y, y_hat=y_hat)
+
+
+def test_plot_separation_invalid_y_hat():
+    """Should raise ValueError if y_hat is not an array, DataArray, or string."""
+    idata = load_arviz_data("classification10d")
+    y = np.array([1, 1, 1])
+    y_hat = 404
+
+    with pytest.raises(ValueError, match="y_hat must be of types array, DataArray or str"):
         plot_separation(idata=idata, y=y, y_hat=y_hat)
 
 
