@@ -9,6 +9,12 @@ from ..data import InferenceData
 from ..rcparams import rcParams
 from .plot_utils import get_plotting_function
 
+#
+import atexit
+import json
+
+branch_ids = {i: False for i in range(1, 17)}  # 16 branches, initiate globally
+
 
 def plot_separation(
     idata=None,
@@ -99,40 +105,58 @@ def plot_separation(
         >>> az.plot_separation(idata=idata, y='outcome', y_hat='outcome', figsize=(8, 1))
 
     """
+
     label_y_hat = "y_hat"
     if idata is not None and not isinstance(idata, InferenceData):
+        branch_ids[1] = True
         raise ValueError("idata must be of type InferenceData or None")
 
     if idata is None:
+        branch_ids[2] = True
         if not all(isinstance(arg, (np.ndarray, xr.DataArray)) for arg in (y, y_hat)):
+            branch_ids[3] = True
             raise ValueError(
                 "y and y_hat must be array or DataArray when idata is None "
                 f"but they are of types {[type(arg) for arg in (y, y_hat)]}"
             )
+        else:
+            branch_ids[4] = True
 
     else:
+        branch_ids[5] = True
         if y_hat is None and isinstance(y, str):
+            branch_ids[6] = True
             label_y_hat = y
             y_hat = y
         elif y_hat is None:
+            branch_ids[7] = True
             raise ValueError("y_hat cannot be None if y is not a str")
 
         if isinstance(y, str):
+            branch_ids[8] = True
             y = idata.observed_data[y].values
         elif not isinstance(y, (np.ndarray, xr.DataArray)):
+            branch_ids[9] = True
             raise ValueError(f"y must be of types array, DataArray or str, not {type(y)}")
 
         if isinstance(y_hat, str):
+            branch_ids[10] = True
             label_y_hat = y_hat
             y_hat = idata.posterior_predictive[y_hat].mean(dim=("chain", "draw")).values
         elif not isinstance(y_hat, (np.ndarray, xr.DataArray)):
+            branch_ids[11] = True
             raise ValueError(f"y_hat must be of types array, DataArray or str, not {type(y_hat)}")
+        else:
+            branch_ids[12] = True
 
     if len(y) != len(y_hat):
+        branch_ids[13] = True
         warnings.warn(
             "y and y_hat must be the same length",
             UserWarning,
         )
+    else:
+        branch_ids[14] = True
 
     locs = np.linspace(0, 1, len(y_hat))
     width = np.diff(locs).mean()
@@ -158,10 +182,32 @@ def plot_separation(
     )
 
     if backend is None:
+        branch_ids[15] = True
         backend = rcParams["plot.backend"]
+
+    else:
+        branch_ids[16] = True
+
     backend = backend.lower()
 
     plot = get_plotting_function("plot_separation", "separationplot", backend)
     axes = plot(**separation_kwargs)
 
     return axes
+
+
+def report_coverage(file_path="coverage_sep_plot.json"):
+    """
+    This function will be called once the seperationplot.py is done executing.
+    """
+    print("\nBranch Coverage Report for plot_seperation():")
+    print(json.dumps(branch_ids, indent=2))
+
+    # Save to file
+    with open(file_path, "w") as f:
+        json.dump(branch_ids, f, indent=2)
+
+    print(f"Branch coverage report saved to {file_path}")
+
+
+atexit.register(report_coverage)
