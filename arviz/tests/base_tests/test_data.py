@@ -7,15 +7,17 @@ import warnings
 from collections import namedtuple
 from copy import deepcopy
 from html import escape
-from typing import Dict
 from tempfile import TemporaryDirectory
 from urllib.parse import urlunsplit
 
 import numpy as np
 import pytest
+from unittest.mock import patch, call, Mock
 import xarray as xr
 from xarray.core.options import OPTIONS
 from xarray.testing import assert_identical
+
+from arviz.data.io_cmdstan import from_cmdstan
 
 from ... import (
     InferenceData,
@@ -1154,6 +1156,43 @@ def test_convert_to_inference_data_from_file(tmpdir):
     first.to_netcdf(filename)
     second = convert_to_inference_data(filename)
     assert first.prior.equals(second.prior)
+
+
+
+def test_convert_to_inference_bad_coords_with_InferenceData():
+    obj = InferenceData()
+    with pytest.raises(TypeError):
+        convert_to_inference_data(obj, coords={"Some": ["value"]})
+
+
+def test_convert_to_inference_bad_dims_with_InferenceData(tmpdir):
+    filename = str(tmpdir.join("test_file.nc"))
+    obj = InferenceData()
+    with pytest.raises(TypeError):
+        convert_to_inference_data(filename, dims={"Some": ["value"]})
+
+def test_convert_to_inference_bad_dims_with_netcdf(tmpdir):
+    filename = str(tmpdir.join("test_file.nc"))
+    obj = InferenceData()
+    with pytest.raises(TypeError):
+        convert_to_inference_data(filename, dims={"Some": ["value"]})
+
+def test_convert_to_inference_bad_coords_with_netcdf():
+    obj = InferenceData()
+    with pytest.raises(TypeError):
+        convert_to_inference_data(obj, coords={"Some": ["value"]})
+
+def test_convert_to_inference_csv_prior(  tmpdir,mocker):
+    mock_from_cmdstan = mocker.patch('arviz.data.converters.from_cmdstan')
+    filename = str(tmpdir.join("test_file.csv"))
+    convert_to_inference_data(filename, group="sample_stats_prior")
+    mock_from_cmdstan.assert_called_with(prior=filename, dims = None, coords = None)
+
+def test_convert_to_inference_csv_posterior(  tmpdir,mocker):
+    mock_from_cmdstan = mocker.patch('arviz.data.converters.from_cmdstan')
+    filename = str(tmpdir.join("test_file.csv"))
+    convert_to_inference_data(filename, group="sample_stats")
+    mock_from_cmdstan.assert_called_with(posterior=filename, dims = None, coords = None)
 
 
 def test_convert_to_inference_data_bad():
