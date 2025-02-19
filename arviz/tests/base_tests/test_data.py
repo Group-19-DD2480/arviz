@@ -1702,17 +1702,3 @@ class TestExtractDataset:
         post = extract(idata, num_samples=10)
         assert post.sizes["sample"] == 10
         assert post.attrs == idata.posterior.attrs
-
-from ...data.inference_data import concat, branch_coverage
-
-def test_concat_coverage():
-    # Output coverage information
-    with open("branch_coverage.txt", "w") as f:
-        for i, covered in enumerate(branch_coverage):
-            f.write(f"Branch {i}: {'Taken' if covered == 1 else 'Not Reached'}\n")
-    assert True
-
-
-if __name__ == "__main__":
-    pytest.main()
-    test_concat_coverage()
