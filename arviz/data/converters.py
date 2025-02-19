@@ -19,6 +19,81 @@ from .io_pyro import from_pyro
 from .io_pystan import from_pystan
 
 
+def convert_from_stan_model(obj, group, **kwargs):
+    """Convert a stan model object to an Inference Data object
+
+    Paramters
+    ---------
+    obj : See convert_to_inference_data
+    group : See convert_to_inference_data
+    kwargs : See convert_to_inference_data
+
+    Returns
+    -------
+    InferenceData
+    """
+    set_prior_or_posterior(group, **kwargs)
+    if obj.__class__.__name__ == "CmdStanMCMC":
+        return from_cmdstanpy(**kwargs)
+    else:  # pystan or pystan3
+        return from_pystan(**kwargs)
+
+
+def set_prior_or_posterior(group, **kwargs):
+    """Sets the prior or posterior value in kwargs based on the group value
+
+    If group is "sample_stats", the posterior is set, if it is "sample_stats_prior", the prior is set
+
+    Paramters
+    ---------
+    group : See convert_to_inference_data
+    kwargs : See convert_to_inference_data
+    """
+    if group == "sample_stats":
+        kwargs["posterior"] = kwargs.pop(group)
+    elif group == "sample_stats_prior":
+        kwargs["prior"] = kwargs.pop(group)
+
+
+def convert_from_file(obj, group, **kwargs):
+    """Convert file to Inference Data object
+
+    Extracts the data from a csv or netcdf file to an inference data object
+
+    Paramters
+    ---------
+    obj : string representing a path to a .csv or .nc file
+    group : See convert_to_inference_data
+    kwargs : See convert_to_inference_data
+    """
+    if obj.endswith(".csv"):
+        set_prior_or_posterior(group, **kwargs)
+        return from_cmdstan(**kwargs)
+    else:
+        if kwargs["coords"] is not None or kwargs["dims"] is not None:
+            raise TypeError(
+                "Cannot use coords or dims arguments reading InferenceData from netcdf."
+            )
+        return InferenceData.from_netcdf(obj)
+
+
+def from_mcmc(obj, group, **kwargs):
+    """Convert a MCMC object into an inference data object
+
+    The exact method depends on the module of the object, if it is "pyro" or "numpyro"
+
+    Parameters
+    ----------
+    obj : An MCMC object
+    group : See convert_to_inference_data
+    kwargs : See convert_to_inference_data
+    """
+    if obj.__class__.__module__.startswith("pyro"):
+        return from_pyro(posterior=kwargs.pop(group), **kwargs)
+    elif obj.__class__.__module__.startswith("numpyro"):
+        return from_numpyro(posterior=kwargs.pop(group), **kwargs)
+
+
 # pylint: disable=too-many-return-statements
 def convert_to_inference_data(obj, *, group="posterior", coords=None, dims=None, **kwargs):
     r"""Convert a supported object to an InferenceData object.
@@ -69,38 +144,18 @@ def convert_to_inference_data(obj, *, group="posterior", coords=None, dims=None,
             raise TypeError("Cannot use coords or dims arguments with InferenceData value.")
         return obj
     elif isinstance(obj, str):
-        if obj.endswith(".csv"):
-            if group == "sample_stats":
-                kwargs["posterior"] = kwargs.pop(group)
-            elif group == "sample_stats_prior":
-                kwargs["prior"] = kwargs.pop(group)
-            return from_cmdstan(**kwargs)
-        else:
-            if coords is not None or dims is not None:
-                raise TypeError(
-                    "Cannot use coords or dims arguments reading InferenceData from netcdf."
-                )
-            return InferenceData.from_netcdf(obj)
+        return convert_from_file(obj, group, **kwargs)
     elif (
         obj.__class__.__name__ in {"StanFit4Model", "CmdStanMCMC"}
         or obj.__class__.__module__ == "stan.fit"
     ):
-        if group == "sample_stats":
-            kwargs["posterior"] = kwargs.pop(group)
-        elif group == "sample_stats_prior":
-            kwargs["prior"] = kwargs.pop(group)
-        if obj.__class__.__name__ == "CmdStanMCMC":
-            return from_cmdstanpy(**kwargs)
-        else:  # pystan or pystan3
-            return from_pystan(**kwargs)
+        return convert_from_stan_model(obj, group, **kwargs)
     elif obj.__class__.__name__ == "EnsembleSampler":  # ugly, but doesn't make emcee a requirement
         return from_emcee(sampler=kwargs.pop(group), **kwargs)
     elif obj.__class__.__name__ == "MonteCarloSamples":
         return from_beanmachine(sampler=kwargs.pop(group), **kwargs)
-    elif obj.__class__.__name__ == "MCMC" and obj.__class__.__module__.startswith("pyro"):
-        return from_pyro(posterior=kwargs.pop(group), **kwargs)
-    elif obj.__class__.__name__ == "MCMC" and obj.__class__.__module__.startswith("numpyro"):
-        return from_numpyro(posterior=kwargs.pop(group), **kwargs)
+    elif obj.__class__.__name__ == "MCMC":
+        return from_mcmc(obj, group, **kwargs)
 
     # Cases that convert to xarray
     if isinstance(obj, xr.Dataset):
@@ -116,10 +171,7 @@ def convert_to_inference_data(obj, *, group="posterior", coords=None, dims=None,
     elif isinstance(obj, np.ndarray):
         dataset = dict_to_dataset({"x": obj}, coords=coords, dims=dims)
     elif isinstance(obj, (list, tuple)) and isinstance(obj[0], str) and obj[0].endswith(".csv"):
-        if group == "sample_stats":
-            kwargs["posterior"] = kwargs.pop(group)
-        elif group == "sample_stats_prior":
-            kwargs["prior"] = kwargs.pop(group)
+        set_prior_or_posterior(group, **kwargs)
         return from_cmdstan(**kwargs)
     else:
         allowable_types = (
