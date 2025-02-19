@@ -247,7 +247,9 @@ def test_plot_separation_invalid_y():
     y = 404
     y_hat = np.array([0.1, 0.1, 0.1])
 
-    with pytest.raises(ValueError, match="y must be of types array, DataArray or str"):
+    with pytest.raises(
+        ValueError, match=f"y must be of types array, DataArray or str, not {type(y)}"
+    ):
         plot_separation(idata=idata, y=y, y_hat=y_hat)
 
 
@@ -257,7 +259,9 @@ def test_plot_separation_invalid_y_hat():
     y = np.array([1, 1, 1])
     y_hat = 404
 
-    with pytest.raises(ValueError, match="y_hat must be of types array, DataArray or str"):
+    with pytest.raises(
+        ValueError, match=f"y_hat must be of types array, DataArray or str, not {type(y_hat)}"
+    ):
         plot_separation(idata=idata, y=y, y_hat=y_hat)
 
 

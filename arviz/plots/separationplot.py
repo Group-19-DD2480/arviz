@@ -10,6 +10,79 @@ from ..rcparams import rcParams
 from .plot_utils import get_plotting_function
 
 
+def validate_inputs(idata, y, y_hat):
+    """
+    Validate inputs for separation plot.
+
+    Parameters
+    ----------
+    idata : InferenceData
+        :class:`arviz.InferenceData` object.
+    y : array, DataArray or str
+        Observed data. If str, ``idata`` must be present and contain the observed data group
+    y_hat : array, DataArray or str
+        Posterior predictive samples for ``y``. It must have the same shape as ``y``.
+
+    Raises
+    ------
+    ValueError
+        If ``idata`` is not of type InferenceData (None) or if ``y`` and ``y_hat`` are not of type array or DataArray.
+
+    """
+    if idata is not None and not isinstance(idata, InferenceData):
+        raise ValueError("idata must be of type InferenceData or None")
+
+    if idata is None:
+        if not all(isinstance(arg, (np.ndarray, xr.DataArray)) for arg in (y, y_hat)):
+            raise ValueError(
+                f"y and y_hat must be array or DataArray when idata is None, got {[type(arg) for arg in (y, y_hat)]}"
+            )
+
+
+def process_data(idata, y=None, y_hat=None):
+    """
+    Process y and y_hat data.
+
+    Parameters
+    ----------
+    idata : InferenceData
+        :class:`arviz.InferenceData` object.
+    y : array, DataArray or str
+    y_hat : array, DataArray or str
+
+    Returns
+    -------
+    y : array
+    y_hat : array
+    label_y_hat : str
+
+    """
+    label_y_hat = "y_hat"
+    if idata is not None:
+        if y_hat is None:
+            if isinstance(y, str):
+                label_y_hat = y
+                y_hat = y
+            else:
+                raise ValueError("y_hat cannot be None if y is not a str")
+
+        if isinstance(y, str):
+            y = idata.observed_data[y].values
+        elif not isinstance(y, (np.ndarray, xr.DataArray)):
+            raise ValueError(f"y must be of types array, DataArray or str, not {type(y)}")
+
+        if isinstance(y_hat, str):
+            label_y_hat = y_hat
+            y_hat = idata.posterior_predictive[y_hat].mean(dim=("chain", "draw")).values
+        elif not isinstance(y_hat, (np.ndarray, xr.DataArray)):
+            raise ValueError(f"y_hat must be of types array, DataArray or str, not {type(y_hat)}")
+
+    if len(y) != len(y_hat):
+        warnings.warn("y and y_hat must be the same length", UserWarning)
+
+    return y, y_hat, label_y_hat
+
+
 def plot_separation(
     idata=None,
     y=None,
@@ -99,40 +172,8 @@ def plot_separation(
         >>> az.plot_separation(idata=idata, y='outcome', y_hat='outcome', figsize=(8, 1))
 
     """
-    label_y_hat = "y_hat"
-    if idata is not None and not isinstance(idata, InferenceData):
-        raise ValueError("idata must be of type InferenceData or None")
-
-    if idata is None:
-        if not all(isinstance(arg, (np.ndarray, xr.DataArray)) for arg in (y, y_hat)):
-            raise ValueError(
-                "y and y_hat must be array or DataArray when idata is None "
-                f"but they are of types {[type(arg) for arg in (y, y_hat)]}"
-            )
-
-    else:
-        if y_hat is None and isinstance(y, str):
-            label_y_hat = y
-            y_hat = y
-        elif y_hat is None:
-            raise ValueError("y_hat cannot be None if y is not a str")
-
-        if isinstance(y, str):
-            y = idata.observed_data[y].values
-        elif not isinstance(y, (np.ndarray, xr.DataArray)):
-            raise ValueError(f"y must be of types array, DataArray or str, not {type(y)}")
-
-        if isinstance(y_hat, str):
-            label_y_hat = y_hat
-            y_hat = idata.posterior_predictive[y_hat].mean(dim=("chain", "draw")).values
-        elif not isinstance(y_hat, (np.ndarray, xr.DataArray)):
-            raise ValueError(f"y_hat must be of types array, DataArray or str, not {type(y_hat)}")
-
-    if len(y) != len(y_hat):
-        warnings.warn(
-            "y and y_hat must be the same length",
-            UserWarning,
-        )
+    validate_inputs(idata, y, y_hat)
+    y, y_hat, label_y_hat = process_data(idata, y, y_hat)
 
     locs = np.linspace(0, 1, len(y_hat))
     width = np.diff(locs).mean()
