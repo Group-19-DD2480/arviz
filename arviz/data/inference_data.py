@@ -2070,18 +2070,26 @@ def concat(*args, dim=None, copy=True, inplace=False, reset_dim=True):
     It will create an ``InferenceData`` with the original group 'posterior'. In similar way,
     we can also concatenate over draws.
 
+decisions: 79
+array decisions: 4
+exit points: 6
+errors: 9
+for loops: 13/17
+
+total: (79 + 4  + 17) - (6 + 9) + 2
+
     """
     # pylint: disable=undefined-loop-variable, too-many-nested-blocks
     if len(args) == 0:  # decision 1
         if inplace:  # decision 2
-            return
-        return InferenceData()
+            return # exit 1
+        return InferenceData() # exit 2
 
     if len(args) == 1 and isinstance(args[0], Sequence):  # decision 3 # decision 4 # decision 5
         args = args[0]
 
     # assert that all args are InferenceData
-    for i, arg in enumerate(args):
+    for i, arg in enumerate(args): # for 1
         if not isinstance(arg, InferenceData):  # decision 6
             raise TypeError(
                 "Concatenating is supported only"
@@ -2101,22 +2109,22 @@ def concat(*args, dim=None, copy=True, inplace=False, reset_dim=True):
         args[0], InferenceData
     ):  # decision 11 # decision 12 # decision 13
         if inplace:  # decision 14
-            return None
+            return None # exit 3
         else:
             if copy:  # decision 15
-                return deepcopy(args[0])
+                return deepcopy(args[0]) # exit 4
             else:
-                return args[0]
+                return args[0] # exit 5
 
     current_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
     combined_attr = defaultdict(list)
-    for idata in args:
-        for key, val in idata.attrs.items():
+    for idata in args: # for 2
+        for key, val in idata.attrs.items(): # for 3
             combined_attr[key].append(val)
 
-    for key, val in combined_attr.items():
+    for key, val in combined_attr.items(): # for 4
         all_same = True
-        for indx in range(len(val) - 1):
+        for indx in range(len(val) - 1): # for 5
             if val[indx] != val[indx + 1]:  # decision 16
                 all_same = False
                 break
@@ -2135,8 +2143,8 @@ def concat(*args, dim=None, copy=True, inplace=False, reset_dim=True):
         args_groups = {}
         # check if groups are independent
         # Concat over unique groups
-        for arg in args[1:]:
-            for group in arg._groups_all:
+        for arg in args[1:]: # for 6
+            for group in arg._groups_all: # for 7
                 if (
                     group in args_groups or group in arg0_groups
                 ):  # decision 21 # decision 22 # decision 23
@@ -2152,13 +2160,13 @@ def concat(*args, dim=None, copy=True, inplace=False, reset_dim=True):
         # otherwise it will merge args_groups to arg0
         # inference data object
         if not inplace:  # decision 25
-            for group in arg0_groups:
+            for group in arg0_groups: # for 8
                 group_data = getattr(arg0, group)
                 args_groups[group] = deepcopy(group_data) if copy else group_data  # decision 26
 
-        other_groups = [group for group in args_groups if group not in SUPPORTED_GROUPS_ALL]
+        other_groups = [group for group in args_groups if group not in SUPPORTED_GROUPS_ALL] # for 18 #array decision 1
 
-        for group in SUPPORTED_GROUPS_ALL + other_groups:
+        for group in SUPPORTED_GROUPS_ALL + other_groups: # for 9
             if group not in args_groups:  # decision 27
                 continue
             if inplace:  # decision 28
@@ -2171,29 +2179,29 @@ def concat(*args, dim=None, copy=True, inplace=False, reset_dim=True):
                 inference_data_dict[group] = args_groups[group]
         if inplace:  # decision 30
             other_groups = [
-                group for group in arg0_groups if group not in SUPPORTED_GROUPS_ALL
+                group for group in arg0_groups if group not in SUPPORTED_GROUPS_ALL # for 19 #array decision 2
             ] + other_groups
             sorted_groups = [
-                group for group in SUPPORTED_GROUPS + other_groups if group in arg0._groups
+                group for group in SUPPORTED_GROUPS + other_groups if group in arg0._groups # for 20 #array decision 3
             ]
             setattr(arg0, "_groups", sorted_groups)
             sorted_groups_warmup = [
                 group
-                for group in SUPPORTED_GROUPS_WARMUP + other_groups
-                if group in arg0._groups_warmup
+                for group in SUPPORTED_GROUPS_WARMUP + other_groups # for 21
+                if group in arg0._groups_warmup #array decision 4
             ]
             setattr(arg0, "_groups_warmup", sorted_groups_warmup)
     else:
         arg0 = args[0]
         arg0_groups = arg0._groups_all
-        for arg in args[1:]:
-            for group0 in arg0_groups:
+        for arg in args[1:]: # for 10
+            for group0 in arg0_groups: # for 11
                 if group0 not in arg._groups_all:  # decision 31
                     if group0 == "observed_data":  # decision 32
                         continue
                     msg = "Mismatch between the groups."
                     raise TypeError(msg)
-            for group in arg._groups_all:
+            for group in arg._groups_all: # for 12
                 # handle data groups separately
                 if group not in [
                     "observed_data",
@@ -2217,12 +2225,12 @@ def concat(*args, dim=None, copy=True, inplace=False, reset_dim=True):
                         group0_data = getattr(arg0, group)
                     group0_vars = group0_data.data_vars
 
-                    for var in group0_vars:
+                    for var in group0_vars: # for 13
                         if var not in group_vars:  # decision 38
                             msg = "Mismatch between the variables."
                             raise TypeError(msg)
 
-                    for var in group_vars:
+                    for var in group_vars: # for 14
                         if var not in group0_vars:  # decision 39
                             msg = "Mismatch between the variables."
                             raise TypeError(msg)
@@ -2255,7 +2263,7 @@ def concat(*args, dim=None, copy=True, inplace=False, reset_dim=True):
                         group_attrs = {}
 
                     # gather attrs results to group0_attrs
-                    for attr_key, attr_values in group_attrs.items():
+                    for attr_key, attr_values in group_attrs.items(): # for 15
                         group0_attr_values = group0_attrs.get(attr_key, None)
                         equality = attr_values == group0_attr_values
                         if hasattr(equality, "__iter__"):  # decision 47
@@ -2312,7 +2320,7 @@ def concat(*args, dim=None, copy=True, inplace=False, reset_dim=True):
                         group0_data = deepcopy(group0_data)
                     group0_vars = group0_data.data_vars
 
-                    for var in group_vars:
+                    for var in group_vars: # for 16
                         if var not in group0_vars:  # decision 61
                             var_data = group_data[var]
                             getattr(arg0, group)[var] = var_data
@@ -2337,7 +2345,7 @@ def concat(*args, dim=None, copy=True, inplace=False, reset_dim=True):
                         group_attrs = {}
 
                     # gather attrs results to group0_attrs
-                    for attr_key, attr_values in group_attrs.items():
+                    for attr_key, attr_values in group_attrs.items(): # for 17
                         group0_attr_values = group0_attrs.get(attr_key, None)
                         equality = attr_values == group0_attr_values
                         if hasattr(equality, "__iter__"):  # decision 67
@@ -2381,4 +2389,4 @@ def concat(*args, dim=None, copy=True, inplace=False, reset_dim=True):
     if not inplace:  # decision 78
         inference_data_dict["attrs"] = combined_attr
 
-    return None if inplace else InferenceData(**inference_data_dict)  # decision 79
+    return None if inplace else InferenceData(**inference_data_dict)  # decision 79 # exit 6
