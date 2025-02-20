@@ -18,6 +18,15 @@ from .. import show_layout
 from . import backend_kwarg_defaults, dealiase_sel_kwargs
 from ....sel_utils import xarray_var_iter
 
+import pandas as pd  # branch coverage
+
+
+def track_branch(branch_nr):
+    file_name = "coverage_plot_trace.csv"
+    df = pd.read_csv(file_name, header=None)
+    df.iloc[branch_nr] = 1
+    df.to_csv(file_name, index=False, header=False)
+
 
 def plot_trace(
     data,
@@ -49,11 +58,15 @@ def plot_trace(
     show,
 ):
     """Bokeh traceplot."""
+    track_branch(0)
     # If divergences are plotted they must be provided
     if divergences is not False:
+        track_branch(1)
         assert divergence_data is not None
+        track_branch(2)
 
     if backend_config is None:
+        track_branch(3)
         backend_config = {}
 
     backend_config = {
@@ -65,6 +78,7 @@ def plot_trace(
 
     # Set plot default backend kwargs
     if backend_kwargs is None:
+        track_branch(4)
         backend_kwargs = {}
 
     backend_kwargs = {
@@ -76,6 +90,7 @@ def plot_trace(
     dpi = backend_kwargs.pop("dpi")
 
     if figsize is None:
+        track_branch(5)
         figsize = (12, len(plotters) * 2)
 
     figsize, _, _, _, linewidth, _ = _scale_fig_size(figsize, 10, rows=len(plotters), cols=2)
@@ -84,16 +99,22 @@ def plot_trace(
     backend_kwargs.setdefault("width", int(figsize[0] * dpi // 2))
 
     if lines is None:
+        track_branch(6)
         lines = ()
 
     num_chain_props = len(data.chain) + 1 if combined else len(data.chain)
+    track_branch(7) if combined else track_branch(8)
     if not compact:
+        track_branch(9)
+        track_branch(10) if chain_prop is None else track_branch(11)
         chain_prop = (
             {"line_color": plt.rcParams["axes.prop_cycle"].by_key()["color"]}
             if chain_prop is None
             else chain_prop
         )
     else:
+        track_branch(12)
+        track_branch(13) if chain_prop is None else track_branch(14)
         chain_prop = (
             {
                 "line_dash": ("solid", "dotted", "dashed", "dashdot"),
@@ -101,6 +122,7 @@ def plot_trace(
             if chain_prop is None
             else chain_prop
         )
+        track_branch(15) if compact_prop is None else track_branch(16)
         compact_prop = (
             {"line_color": plt.rcParams["axes.prop_cycle"].by_key()["color"]}
             if compact_prop is None
@@ -108,8 +130,10 @@ def plot_trace(
         )
 
     if isinstance(chain_prop, str):
+        track_branch(17)
         chain_prop = {chain_prop: plt.rcParams["axes.prop_cycle"].by_key()[chain_prop]}
     if isinstance(chain_prop, tuple):
+        track_branch(18)
         warnings.warn(
             "chain_prop as a tuple will be deprecated in a future warning, use a dict instead",
             FutureWarning,
@@ -121,44 +145,57 @@ def plot_trace(
     }
 
     if isinstance(compact_prop, str):
+        track_branch(19)
         compact_prop = {compact_prop: plt.rcParams["axes.prop_cycle"].by_key()[compact_prop]}
     if isinstance(compact_prop, tuple):
+        track_branch(20)
         warnings.warn(
             "compact_prop as a tuple will be deprecated in a future warning, use a dict instead",
             FutureWarning,
         )
         compact_prop = {compact_prop[0]: compact_prop[1]}
 
+    track_branch(21) if trace_kwargs is None else track_branch(22)
     trace_kwargs = {} if trace_kwargs is None else trace_kwargs
     trace_kwargs.setdefault("alpha", 0.35)
 
     if hist_kwargs is None:
+        track_branch(23)
         hist_kwargs = {}
     hist_kwargs.setdefault("alpha", 0.35)
 
     if plot_kwargs is None:
+        track_branch(24)
         plot_kwargs = {}
     if fill_kwargs is None:
+        track_branch(25)
         fill_kwargs = {}
     if rug_kwargs is None:
+        track_branch(26)
         rug_kwargs = {}
     if rank_kwargs is None:
+        track_branch(27)
         rank_kwargs = {}
 
     trace_kwargs.setdefault("line_width", linewidth)
     plot_kwargs.setdefault("line_width", linewidth)
 
     if rank_kwargs is None:
+        track_branch(28)
         rank_kwargs = {}
 
     if axes is None:
+        track_branch(29)
         axes = []
         backend_kwargs_copy = backend_kwargs.copy()
         for i in range(len(plotters)):
+            track_branch(30)
             if not i:
+                track_branch(31)
                 _axes = [bkp.figure(**backend_kwargs), bkp.figure(**backend_kwargs_copy)]
                 backend_kwargs_copy.setdefault("x_range", _axes[1].x_range)
             else:
+                track_branch(32)
                 _axes = [
                     bkp.figure(**backend_kwargs),
                     bkp.figure(**backend_kwargs_copy),
@@ -174,7 +211,9 @@ def plot_trace(
     for var_name, selection, isel, value in list(
         xarray_var_iter(data, var_names=var_names, combined=True)
     ):
+        track_branch(33)
         if selection:
+            track_branch(34)
             cds_name = "{}_ARVIZ_CDS_SELECTION_{}".format(
                 var_name,
                 "_".join(
@@ -188,30 +227,38 @@ def plot_trace(
                 ),
             )
         else:
+            track_branch(35)
             cds_name = var_name
 
         if var_name not in cds_var_groups:
+            track_branch(36)
             cds_var_groups[var_name] = []
         cds_var_groups[var_name].append(cds_name)
 
         for chain_idx, _ in enumerate(data.chain.values):
+            track_branch(37)
             if chain_idx not in cds_data:
+                track_branch(38)
                 cds_data[chain_idx] = {}
             _data = value[chain_idx]
             cds_data[chain_idx][cds_name] = _data
 
     while any(key == draw_name for key in cds_data[0]):
+        track_branch(39)
         draw_name += "w"
 
     for chain in cds_data.values():
+        track_branch(40)
         chain[draw_name] = data.draw.values
 
     cds_data = {chain_idx: ColumnDataSource(cds) for chain_idx, cds in cds_data.items()}
 
     for idx, (var_name, selection, isel, value) in enumerate(plotters):
+        track_branch(41)
         value = np.atleast_2d(value)
 
         if len(value.shape) == 2:
+            track_branch(42)
             y_name = (
                 var_name
                 if not selection
@@ -229,6 +276,7 @@ def plot_trace(
                 )
             )
             if rug:
+                track_branch(43)
                 rug_kwargs["y"] = y_name
             _plot_chains_bokeh(
                 ax_density=axes[idx, 0],
@@ -249,8 +297,11 @@ def plot_trace(
                 rank_kwargs=rank_kwargs,
             )
         else:
+            track_branch(44)
             for y_name in cds_var_groups[var_name]:
+                track_branch(45)
                 if rug:
+                    track_branch(46)
                     rug_kwargs["y"] = y_name
                 _plot_chains_bokeh(
                     ax_density=axes[idx, 0],
@@ -280,12 +331,16 @@ def plot_trace(
             )
 
         for _, _, vlines in (j for j in lines if j[0] == var_name and j[1] == selection):
+            track_branch(47)
             if isinstance(vlines, (float, int)):
+                track_branch(48)
                 line_values = [vlines]
             else:
+                track_branch(49)
                 line_values = np.atleast_1d(vlines).ravel()
 
             for line_value in line_values:
+                track_branch(50)
                 vline = Span(
                     location=line_value,
                     dimension="height",
@@ -305,15 +360,19 @@ def plot_trace(
                 axes[idx, 1].renderers.append(hline)
 
         if legend:
+            track_branch(51)
             for col in (0, 1):
                 axes[idx, col].legend.location = "top_left"
                 axes[idx, col].legend.click_policy = "hide"
         else:
+            track_branch(52)
             for col in (0, 1):
                 if axes[idx, col].legend:
+                    track_branch(53)
                     axes[idx, col].legend.visible = False
 
         if divergences:
+            track_branch(54)
             div_density_kwargs = {}
             div_density_kwargs.setdefault("size", 14)
             div_density_kwargs.setdefault("line_color", "red")
@@ -333,16 +392,21 @@ def plot_trace(
             divs = np.atleast_2d(divs)
 
             for chain, chain_divs in enumerate(divs):
+                track_branch(55)
                 div_idxs = np.arange(len(chain_divs))[chain_divs]
                 if div_idxs.size > 0:
+                    track_branch(56)
                     values = value[chain, div_idxs]
                     tmp_cds = ColumnDataSource({"y": values, "x": div_idxs})
                     if divergences == "top":
+                        track_branch(57)
                         y_div_trace = value.max()
                     else:
+                        track_branch(58)
                         y_div_trace = value.min()
                     glyph_density = Scatter(x="y", y=0.0, marker="dash", **div_density_kwargs)
                     if kind == "trace":
+                        track_branch(59)
                         glyph_trace = Scatter(
                             x="x", y=y_div_trace, marker="dash", **div_trace_kwargs
                         )
