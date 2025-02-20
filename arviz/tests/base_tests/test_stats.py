@@ -429,6 +429,26 @@ def test_summary_index_origin_deprecation(centered_eight):
         summary(centered_eight, index_origin=1)
 
 
+def test_summary_invalid_hdi_prob(centered_eight):
+    with pytest.raises(ValueError):
+        summary(centered_eight, hdi_prob=2)
+
+
+def test_summary_invalid_kind(centered_eight):
+    with pytest.raises(TypeError):
+        summary(centered_eight, kind=1)
+
+
+def test_summary_invalid_stat_focus(centered_eight):
+    with pytest.raises(TypeError):
+        summary(centered_eight, stat_focus="median", circ_var_names=["name1", "name2"])
+
+
+def test_summary_invalid_circ_var_names(centered_eight):
+    with pytest.raises(KeyError):
+        summary(centered_eight, circ_var_names=["name1", "name2"])
+
+
 @pytest.mark.parametrize("scale", ["log", "negative_log", "deviance"])
 @pytest.mark.parametrize("multidim", (True, False))
 def test_waic(centered_eight, multidim_models, scale, multidim):
