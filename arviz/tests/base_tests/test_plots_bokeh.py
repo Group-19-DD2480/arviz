@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 from pandas import DataFrame  # pylint: disable=wrong-import-position
 from scipy.stats import norm  # pylint: disable=wrong-import-position
+from unittest.mock import patch
 
 from ...data import from_dict, load_arviz_data  # pylint: disable=wrong-import-position
 from ...plots import (  # pylint: disable=wrong-import-position
@@ -183,6 +184,12 @@ def test_plot_separation(kwargs):
         {"kind": "rank_bars"},
         {"lines": [("mu", {}, [1, 2])]},
         {"lines": [("mu", {}, 8)]},
+        # additional coverage
+        {"compact": False},
+        {"chain_prop": "color"},
+        {"chain_prop": ("line_dash", ("solid",))},
+        {"compact_prop": "color"},
+        {"compact_prop": ("line_dash", ("solid",))},
     ],
 )
 def test_plot_trace(models, kwargs):
