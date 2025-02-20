@@ -34,4 +34,5 @@ __all__ = [
     "reloo",
     "_calculate_ics",
     "psens",
+    "visited_branches",
 ]

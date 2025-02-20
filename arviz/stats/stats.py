@@ -39,6 +39,7 @@ from .stats_utils import wrap_xarray_ufunc as _wrap_xarray_ufunc
 from ..sel_utils import xarray_var_iter
 from ..labels import BaseLabeller
 
+visited_branches: set = set()
 
 __all__ = [
     "apply_test_function",
@@ -55,6 +56,7 @@ __all__ = [
     "weight_predictions",
     "_calculate_ics",
     "psens",
+    "visited_branches",
 ]
 
 
@@ -1329,64 +1331,109 @@ def summary(
 
     """
     _log.cache = []
+    visited_branches.add(0)
 
     if coords is None:
         coords = {}
+        visited_branches.add(1)
+    else:
+        visited_branches.add(2)
 
     if index_origin is not None:
+        visited_branches.add(3)
         warnings.warn(
             "index_origin has been deprecated. summary now shows coordinate values, "
             "to change the label shown, modify the coordinate values before calling summary",
             DeprecationWarning,
         )
         index_origin = rcParams["data.index_origin"]
+    else:
+        visited_branches.add(4)
     if labeller is None:
+        visited_branches.add(5)
         labeller = BaseLabeller()
+    else:
+        visited_branches.add(6)
     if hdi_prob is None:
+        visited_branches.add(7)
         hdi_prob = rcParams["stats.ci_prob"]
     elif not 1 >= hdi_prob > 0:
+        visited_branches.add(8)
         raise ValueError("The value of hdi_prob should be in the interval (0, 1]")
+    else:
+        visited_branches.add(9)
 
     if isinstance(data, InferenceData):
+        visited_branches.add(10)
         if group is None:
+            visited_branches.add(11)
             if not data.groups():
+                visited_branches.add(12)
                 raise TypeError("InferenceData does not contain any groups")
+            else:
+                visited_branches.add(13)
             if "posterior" in data:
+                visited_branches.add(14)
                 dataset = data["posterior"]
             elif "prior" in data:
+                visited_branches.add(15)
                 dataset = data["prior"]
             else:
+                visited_branches.add(16)
                 warnings.warn(f"Selecting first found group: {data.groups()[0]}")
                 dataset = data[data.groups()[0]]
         elif group in data.groups():
+            visited_branches.add(17)
             dataset = data[group]
         else:
+            visited_branches.add(18)
             raise TypeError(f"InferenceData does not contain group: {group}")
     else:
+        visited_branches.add(19)
         dataset = convert_to_dataset(data, group="posterior")
     var_names = _var_names(var_names, dataset, filter_vars)
-    dataset = dataset if var_names is None else dataset[var_names]
+    if var_names is None:
+        visited_branches.add(20)
+        dataset = dataset
+    else:
+        visited_branches.add(21)
+        dataset = dataset[var_names]
     dataset = get_coords(dataset, coords)
 
     fmt_group = ("wide", "long", "xarray")
     if not isinstance(fmt, str) or (fmt.lower() not in fmt_group):
+        visited_branches.add(22)
         raise TypeError(f"Invalid format: '{fmt}'. Formatting options are: {fmt_group}")
+    else:
+        visited_branches.add(23)
 
     kind_group = ("all", "stats", "diagnostics")
     if not isinstance(kind, str) or kind not in kind_group:
+        visited_branches.add(24)
         raise TypeError(f"Invalid kind: '{kind}'. Kind options are: {kind_group}")
+    else:
+        visited_branches.add(25)
 
     focus_group = ("mean", "median")
     if not isinstance(stat_focus, str) or (stat_focus not in focus_group):
+        visited_branches.add(26)
         raise TypeError(f"Invalid format: '{stat_focus}'. Focus options are: {focus_group}")
+    else:
+        visited_branches.add(27)
 
     if stat_focus != "mean" and circ_var_names is not None:
+        visited_branches.add(28)
         raise TypeError(f"Invalid format: Circular stats not supported for '{stat_focus}'")
+    else:
+        visited_branches.add(29)
 
     if order is not None:
+        visited_branches.add(30)
         warnings.warn(
             "order has been deprecated. summary now shows coordinate values.", DeprecationWarning
         )
+    else:
+        visited_branches.add(31)
 
     alpha = 1 - hdi_prob
 
@@ -1394,8 +1441,11 @@ def summary(
     extra_metric_names = []
 
     if stat_funcs is not None:
+        visited_branches.add(32)
         if isinstance(stat_funcs, dict):
+            visited_branches.add(33)
             for stat_func_name, stat_func in stat_funcs.items():
+                visited_branches.add(34)
                 extra_metrics.append(
                     xr.apply_ufunc(
                         _make_ufunc(stat_func), dataset, input_core_dims=(("chain", "draw"),)
@@ -1403,18 +1453,24 @@ def summary(
                 )
                 extra_metric_names.append(stat_func_name)
         else:
+            visited_branches.add(35)
             for stat_func in stat_funcs:
+                visited_branches.add(36)
                 extra_metrics.append(
                     xr.apply_ufunc(
                         _make_ufunc(stat_func), dataset, input_core_dims=(("chain", "draw"),)
                     )
                 )
                 extra_metric_names.append(stat_func.__name__)
+    else:
+        visited_branches.add(37)
 
     metrics: List[xr.Dataset] = []
     metric_names: List[str] = []
     if extend and kind in ["all", "stats"]:
+        visited_branches.add(38)
         if stat_focus == "mean":
+            visited_branches.add(39)
             mean = dataset.mean(dim=("chain", "draw"), skipna=skipna)
 
             sd = dataset.std(dim=("chain", "draw"), ddof=1, skipna=skipna)
@@ -1427,6 +1483,7 @@ def summary(
                 ("mean", "sd", f"hdi_{100 * alpha / 2:g}%", f"hdi_{100 * (1 - alpha / 2):g}%")
             )
         elif stat_focus == "median":
+            visited_branches.add(40)
             median = dataset.median(dim=("chain", "draw"), skipna=skipna)
 
             mad = stats.median_abs_deviation(dataset, dims=("chain", "draw"))
@@ -1439,14 +1496,25 @@ def summary(
             metric_names.extend(
                 ("median", "mad", f"eti_{100 * alpha / 2:g}%", f"eti_{100 * (1 - alpha / 2):g}%")
             )
+        else:
+            visited_branches.add(41)
+    else:
+        visited_branches.add(42)
 
     if circ_var_names:
-        nan_policy = "omit" if skipna else "propagate"
+        visited_branches.add(43)
+        if skipna:
+            visited_branches.add(44)
+            nan_policy = "omit"
+        else:
+            visited_branches.add(45)
+            nan_policy = "propagate"
         circ_mean = stats.circmean(
             dataset, dims=["chain", "draw"], high=np.pi, low=-np.pi, nan_policy=nan_policy
         )
         _numba_flag = Numba.numba_flag
         if _numba_flag:
+            visited_branches.add(46)
             circ_sd = xr.apply_ufunc(
                 _make_ufunc(_circular_standard_deviation),
                 dataset,
@@ -1454,6 +1522,7 @@ def summary(
                 input_core_dims=(("chain", "draw"),),
             )
         else:
+            visited_branches.add(47)
             circ_sd = stats.circstd(
                 dataset, dims=["chain", "draw"], high=np.pi, low=-np.pi, nan_policy=nan_policy
             )
@@ -1467,15 +1536,24 @@ def summary(
         circ_hdi = hdi(dataset, hdi_prob=hdi_prob, circular=True, skipna=skipna)
         circ_hdi_lower = circ_hdi.sel(hdi="lower", drop=True)
         circ_hdi_higher = circ_hdi.sel(hdi="higher", drop=True)
+    else:
+        visited_branches.add(48)
 
     if kind in ["all", "diagnostics"] and extend:
+        visited_branches.add(49)
         diagnostics_names: Tuple[str, ...]
         if stat_focus == "mean":
+            visited_branches.add(50)
+            output_core_dims = []
+            for _ in range(5):
+                visited_branches.add(51)
+                output_core_dims.append([])
+            ocd = tuple(output_core_dims)
             diagnostics = xr.apply_ufunc(
                 _make_ufunc(_multichain_statistics, n_output=5, ravel=False),
                 dataset,
                 input_core_dims=(("chain", "draw"),),
-                output_core_dims=tuple([] for _ in range(5)),
+                output_core_dims=ocd,
             )
             diagnostics_names = (
                 "mcse_mean",
@@ -1486,12 +1564,18 @@ def summary(
             )
 
         elif stat_focus == "median":
+            visited_branches.add(52)
+            output_core_dims = []
+            for _ in range(4):
+                visited_branches.add(53)
+                output_core_dims.append([])
+            ocd = tuple(output_core_dims)
             diagnostics = xr.apply_ufunc(
                 _make_ufunc(_multichain_statistics, n_output=4, ravel=False),
                 dataset,
                 kwargs=dict(focus="median"),
                 input_core_dims=(("chain", "draw"),),
-                output_core_dims=tuple([] for _ in range(4)),
+                output_core_dims=ocd,
             )
             diagnostics_names = (
                 "mcse_median",
@@ -1499,17 +1583,26 @@ def summary(
                 "ess_tail",
                 "r_hat",
             )
+        else:
+            visited_branches.add(54)
         metrics.extend(diagnostics)
         metric_names.extend(diagnostics_names)
+    else:
+        visited_branches.add(55)
 
     if circ_var_names and kind != "diagnostics" and stat_focus == "mean":
+        visited_branches.add(56)
         for metric, circ_stat in zip(
             # Replace only the first 5 statistics for their circular equivalent
             metrics[:5],
             (circ_mean, circ_sd, circ_hdi_lower, circ_hdi_higher, circ_mcse),
         ):
+            visited_branches.add(57)
             for circ_var in circ_var_names:
+                visited_branches.add(58)
                 metric[circ_var] = circ_stat[circ_var]
+    else:
+        visited_branches.add(59)
 
     metrics.extend(extra_metrics)
     metric_names.extend(extra_metric_names)
@@ -1517,9 +1610,13 @@ def summary(
         xr.concat(metrics, dim="metric").assign_coords(metric=metric_names).reset_coords(drop=True)
     )
     n_metrics = len(metric_names)
-    n_vars = np.sum([joined[var].size // n_metrics for var in joined.data_vars])
+    n_vars = 0
+    for var in joined.data_vars:
+        visited_branches.add(60)
+        n_vars += joined[var].size // n_metrics
 
     if fmt.lower() == "wide":
+        visited_branches.add(61)
         summary_df = pd.DataFrame(
             (np.full((cast(int, n_vars), n_metrics), np.nan)), columns=metric_names
         )
@@ -1527,25 +1624,40 @@ def summary(
         for i, (var_name, sel, isel, values) in enumerate(
             xarray_var_iter(joined, skip_dims={"metric"})
         ):
+            visited_branches.add(62)
             summary_df.iloc[i] = values
             indices.append(labeller.make_label_flat(var_name, sel, isel))
         summary_df.index = indices
     elif fmt.lower() == "long":
+        visited_branches.add(63)
         df = joined.to_dataframe().reset_index().set_index("metric")
         df.index = list(df.index)
         summary_df = df
     else:
+        visited_branches.add(64)
         # format is 'xarray'
         summary_df = joined
     if (round_to is not None) and (round_to not in ("None", "none")):
+        visited_branches.add(65)
         summary_df = summary_df.round(round_to)
     elif round_to not in ("None", "none") and (fmt.lower() in ("long", "wide")):
+        visited_branches.add(66)
         # Don't round xarray object by default (even with "none")
-        decimals = {
-            col: 3 if col not in {"ess_bulk", "ess_tail", "r_hat"} else 2 if col == "r_hat" else 0
-            for col in summary_df.columns
-        }
+        decimals = {}
+        for col in summary_df.columns:
+            visited_branches.add(67)
+            if col in {"ess_bulk", "ess_tail"}:
+                visited_branches.add(68)
+                decimals[col] = 0
+            elif col == "r_hat":
+                visited_branches.add(69)
+                decimals[col] = 2
+            else:
+                visited_branches.add(70)
+                decimals[col] = 3
         summary_df = summary_df.round(decimals)
+    else:
+        visited_branches.add(71)
 
     return summary_df
 

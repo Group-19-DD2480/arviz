@@ -31,6 +31,7 @@ from ...stats import (
     waic,
     weight_predictions,
     _calculate_ics,
+    visited_branches,
 )
 from ...stats.stats import _gpinv
 from ...stats.stats_utils import get_log_likelihood
@@ -882,3 +883,7 @@ def test_bayes_factor():
     bf_dict1 = bayes_factor(idata, prior=np.random.normal(0, 10, 5000), var_name="a", ref_val=0)
     assert bf_dict0["BF10"] > bf_dict0["BF01"]
     assert bf_dict1["BF10"] < bf_dict1["BF01"]
+
+
+def test_summary_all_branches_visited():
+    assert len(visited_branches) == 72, print("Visited branches:", visited_branches)
