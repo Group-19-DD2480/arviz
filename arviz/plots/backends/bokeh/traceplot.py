@@ -19,40 +19,7 @@ from . import backend_kwarg_defaults, dealiase_sel_kwargs
 from ....sel_utils import xarray_var_iter
 
 
-def plot_trace(
-    data,
-    var_names,
-    divergences,
-    kind,
-    figsize,
-    rug,
-    lines,
-    circ_var_names,  # pylint: disable=unused-argument
-    circ_var_units,  # pylint: disable=unused-argument
-    compact,
-    compact_prop,
-    combined,
-    chain_prop,
-    legend,
-    labeller,
-    plot_kwargs,
-    fill_kwargs,
-    rug_kwargs,
-    hist_kwargs,
-    trace_kwargs,
-    rank_kwargs,
-    plotters,
-    divergence_data,
-    axes,
-    backend_kwargs,
-    backend_config,
-    show,
-):
-    """Bokeh traceplot."""
-    # If divergences are plotted they must be provided
-    if divergences is not False:
-        assert divergence_data is not None
-
+def get_backend_config(backend_config, backend_kwargs):
     if backend_config is None:
         backend_config = {}
 
@@ -75,18 +42,19 @@ def plot_trace(
     }
     dpi = backend_kwargs.pop("dpi")
 
+    return backend_config, backend_kwargs, dpi
+
+
+def set_fig_size(figsize, plotters):
     if figsize is None:
         figsize = (12, len(plotters) * 2)
 
     figsize, _, _, _, linewidth, _ = _scale_fig_size(figsize, 10, rows=len(plotters), cols=2)
 
-    backend_kwargs.setdefault("height", int(figsize[1] * dpi // len(plotters)))
-    backend_kwargs.setdefault("width", int(figsize[0] * dpi // 2))
+    return figsize, linewidth
 
-    if lines is None:
-        lines = ()
 
-    num_chain_props = len(data.chain) + 1 if combined else len(data.chain)
+def get_plot_properties(compact, chain_prop, compact_prop, num_chain_props):
     if not compact:
         chain_prop = (
             {"line_color": plt.rcParams["axes.prop_cycle"].by_key()["color"]}
@@ -129,27 +97,121 @@ def plot_trace(
         )
         compact_prop = {compact_prop[0]: compact_prop[1]}
 
-    trace_kwargs = {} if trace_kwargs is None else trace_kwargs
-    trace_kwargs.setdefault("alpha", 0.35)
+    return chain_prop, compact_prop
 
-    if hist_kwargs is None:
-        hist_kwargs = {}
-    hist_kwargs.setdefault("alpha", 0.35)
 
-    if plot_kwargs is None:
-        plot_kwargs = {}
-    if fill_kwargs is None:
-        fill_kwargs = {}
-    if rug_kwargs is None:
-        rug_kwargs = {}
-    if rank_kwargs is None:
-        rank_kwargs = {}
+def set_default_kwargs(kwargs, default_values):
+    if kwargs is None:
+        kwargs = {}
+    kwargs.update(default_values)
+    return kwargs
 
-    trace_kwargs.setdefault("line_width", linewidth)
-    plot_kwargs.setdefault("line_width", linewidth)
 
-    if rank_kwargs is None:
-        rank_kwargs = {}
+def draw_lines(axes, idx, var_name, selection, lines, trace_kwargs):
+    for _, _, vlines in (j for j in lines if j[0] == var_name and j[1] == selection):
+        line_values = (
+            np.atleast_1d(vlines).ravel() if not isinstance(vlines, (float, int)) else [vlines]
+        )
+        for line_value in line_values:
+            vline = Span(
+                location=line_value,
+                dimension="height",
+                line_color="black",
+                line_width=1.5,
+                line_alpha=0.75,
+            )
+            hline = Span(
+                location=line_value,
+                dimension="width",
+                line_color="black",
+                line_width=1.5,
+                line_alpha=trace_kwargs["alpha"],
+            )
+            axes[idx, 0].renderers.append(vline)
+            axes[idx, 1].renderers.append(hline)
+
+
+def plot_divergences(divergences, axes, idx, var_name, selection, value, divergence_data, kind):
+    div_density_kwargs = {
+        "size": 14,
+        "line_color": "red",
+        "line_width": 2,
+        "line_alpha": 0.50,
+        "angle": np.pi / 2,
+    }
+    div_trace_kwargs = div_density_kwargs.copy()
+    div_selection = {k: v for k, v in selection.items() if k in divergence_data.dims}
+    divs = divergence_data.sel(**div_selection).values
+    divs = np.atleast_2d(divs)
+
+    for chain, chain_divs in enumerate(divs):
+        div_idxs = np.arange(len(chain_divs))[chain_divs]
+        if div_idxs.size > 0:
+            values = value[chain, div_idxs]
+            tmp_cds = ColumnDataSource({"y": values, "x": div_idxs})
+            y_div_trace = value.max() if divergences == "top" else value.min()
+            glyph_density = Scatter(x="y", y=0.0, marker="dash", **div_density_kwargs)
+            if kind == "trace":
+                glyph_trace = Scatter(x="x", y=y_div_trace, marker="dash", **div_trace_kwargs)
+                axes[idx, 1].add_glyph(tmp_cds, glyph_trace)
+
+            axes[idx, 0].add_glyph(tmp_cds, glyph_density)
+
+
+def plot_trace(
+    data,
+    var_names,
+    divergences,
+    kind,
+    figsize,
+    rug,
+    lines,
+    circ_var_names,  # pylint: disable=unused-argument
+    circ_var_units,  # pylint: disable=unused-argument
+    compact,
+    compact_prop,
+    combined,
+    chain_prop,
+    legend,
+    labeller,
+    plot_kwargs,
+    fill_kwargs,
+    rug_kwargs,
+    hist_kwargs,
+    trace_kwargs,
+    rank_kwargs,
+    plotters,
+    divergence_data,
+    axes,
+    backend_kwargs,
+    backend_config,
+    show,
+):
+    """Bokeh traceplot."""
+    # If divergences are plotted they must be provided
+    if divergences is not False:
+        assert divergence_data is not None
+
+    backend_config, backend_kwargs, dpi = get_backend_config(backend_config, backend_kwargs)
+    figsize, linewidth = set_fig_size(figsize, plotters)
+
+    backend_kwargs.setdefault("height", int(figsize[1] * dpi // len(plotters)))
+    backend_kwargs.setdefault("width", int(figsize[0] * dpi // 2))
+
+    if lines is None:
+        lines = ()
+
+    num_chain_props = len(data.chain) + 1 if combined else len(data.chain)
+    chain_prop, compact_prop = get_plot_properties(
+        compact, chain_prop, compact_prop, num_chain_props
+    )
+
+    trace_kwargs = set_default_kwargs(trace_kwargs, {"alpha": 0.35, "line_width": linewidth})
+    hist_kwargs = set_default_kwargs(hist_kwargs, {"alpha": 0.35})
+    plot_kwargs = set_default_kwargs(plot_kwargs, {"line_width": linewidth})
+    fill_kwargs = set_default_kwargs(fill_kwargs, {})
+    rug_kwargs = set_default_kwargs(rug_kwargs, {})
+    rank_kwargs = set_default_kwargs(rank_kwargs, {})
 
     if axes is None:
         axes = []
@@ -279,30 +341,7 @@ def plot_trace(
                 bounds=backend_config["bounds_y_range"], min_interval=0.1
             )
 
-        for _, _, vlines in (j for j in lines if j[0] == var_name and j[1] == selection):
-            if isinstance(vlines, (float, int)):
-                line_values = [vlines]
-            else:
-                line_values = np.atleast_1d(vlines).ravel()
-
-            for line_value in line_values:
-                vline = Span(
-                    location=line_value,
-                    dimension="height",
-                    line_color="black",
-                    line_width=1.5,
-                    line_alpha=0.75,
-                )
-                hline = Span(
-                    location=line_value,
-                    dimension="width",
-                    line_color="black",
-                    line_width=1.5,
-                    line_alpha=trace_kwargs["alpha"],
-                )
-
-                axes[idx, 0].renderers.append(vline)
-                axes[idx, 1].renderers.append(hline)
+        draw_lines(axes, idx, var_name, selection, lines, trace_kwargs)
 
         if legend:
             for col in (0, 1):
@@ -314,41 +353,9 @@ def plot_trace(
                     axes[idx, col].legend.visible = False
 
         if divergences:
-            div_density_kwargs = {}
-            div_density_kwargs.setdefault("size", 14)
-            div_density_kwargs.setdefault("line_color", "red")
-            div_density_kwargs.setdefault("line_width", 2)
-            div_density_kwargs.setdefault("line_alpha", 0.50)
-            div_density_kwargs.setdefault("angle", np.pi / 2)
-
-            div_trace_kwargs = {}
-            div_trace_kwargs.setdefault("size", 14)
-            div_trace_kwargs.setdefault("line_color", "red")
-            div_trace_kwargs.setdefault("line_width", 2)
-            div_trace_kwargs.setdefault("line_alpha", 0.50)
-            div_trace_kwargs.setdefault("angle", np.pi / 2)
-
-            div_selection = {k: v for k, v in selection.items() if k in divergence_data.dims}
-            divs = divergence_data.sel(**div_selection).values
-            divs = np.atleast_2d(divs)
-
-            for chain, chain_divs in enumerate(divs):
-                div_idxs = np.arange(len(chain_divs))[chain_divs]
-                if div_idxs.size > 0:
-                    values = value[chain, div_idxs]
-                    tmp_cds = ColumnDataSource({"y": values, "x": div_idxs})
-                    if divergences == "top":
-                        y_div_trace = value.max()
-                    else:
-                        y_div_trace = value.min()
-                    glyph_density = Scatter(x="y", y=0.0, marker="dash", **div_density_kwargs)
-                    if kind == "trace":
-                        glyph_trace = Scatter(
-                            x="x", y=y_div_trace, marker="dash", **div_trace_kwargs
-                        )
-                        axes[idx, 1].add_glyph(tmp_cds, glyph_trace)
-
-                    axes[idx, 0].add_glyph(tmp_cds, glyph_density)
+            plot_divergences(
+                divergences, axes, idx, var_name, selection, value, divergence_data, kind
+            )
 
     show_layout(axes, show)
 
