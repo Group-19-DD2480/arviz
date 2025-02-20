@@ -183,6 +183,11 @@ def test_plot_separation(kwargs):
         {"kind": "rank_bars"},
         {"lines": [("mu", {}, [1, 2])]},
         {"lines": [("mu", {}, 8)]},
+        {"compact": False},
+        {"chain_prop": "color"},
+        {"chain_prop": ("line_dash", ("solid",))},
+        {"compact_prop": "color"},
+        {"compact_prop": ("line_dash", ("solid",))},
     ],
 )
 def test_plot_trace(models, kwargs):
