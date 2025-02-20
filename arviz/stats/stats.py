@@ -1168,6 +1168,206 @@ def r2_score(y_true, y_pred):
     return pd.Series([np.mean(r_squared), np.std(r_squared)], index=["r2", "r2_std"])
 
 
+def summary_input_validate(
+    data,
+    var_names: Optional[List[str]] = None,
+    filter_vars=None,
+    group=None,
+    fmt: "Literal['wide', 'long', 'xarray']" = "wide",
+    kind: "Literal['all', 'stats', 'diagnostics']" = "all",
+    round_to=None,
+    circ_var_names=None,
+    stat_focus="mean",
+    stat_funcs=None,
+    extend=True,
+    hdi_prob=None,
+    skipna=False,
+    labeller=None,
+    coords=None,
+    index_origin=None,
+    order=None,
+):
+    """Validate and standardise inputs to the summary function.
+
+    Parameters
+    ----------
+    data: obj
+        Any object that can be converted to an :class:`arviz.InferenceData` object
+        Refer to documentation of :func:`arviz.convert_to_dataset` for details
+    var_names: list
+        Names of variables to include in summary. Prefix the variables by ``~`` when you
+        want to exclude them from the summary: `["~beta"]` instead of `["beta"]` (see
+        examples below).
+    filter_vars: {None, "like", "regex"}, optional, default=None
+        If `None` (default), interpret var_names as the real variables names. If "like",
+        interpret var_names as substrings of the real variables names. If "regex",
+        interpret var_names as regular expressions on the real variables names. A la
+        ``pandas.filter``.
+    coords: Dict[str, List[Any]], optional
+        Coordinate subset for which to calculate the summary.
+    group: str
+        Select a group for summary. Defaults to "posterior", "prior" or first group
+        in that order, depending what groups exists.
+    fmt: {'wide', 'long', 'xarray'}
+        Return format is either pandas.DataFrame {'wide', 'long'} or xarray.Dataset {'xarray'}.
+    kind: {'all', 'stats', 'diagnostics'}
+        Whether to include the `stats`: `mean`, `sd`, `hdi_3%`, `hdi_97%`, or the `diagnostics`:
+        `mcse_mean`, `mcse_sd`, `ess_bulk`, `ess_tail`, and `r_hat`. Default to include `all` of
+        them.
+    round_to: int
+        Number of decimals used to round results. Defaults to 2. Use "none" to return raw numbers.
+    circ_var_names: list
+        A list of circular variables to compute circular stats for
+    stat_focus : str, default "mean"
+        Select the focus for summary.
+    stat_funcs: dict
+        A list of functions or a dict of functions with function names as keys used to calculate
+        statistics. By default, the mean, standard deviation, simulation standard error, and
+        highest posterior density intervals are included.
+
+        The functions will be given one argument, the samples for a variable as an nD array,
+        The functions should be in the style of a ufunc and return a single number. For example,
+        :func:`numpy.mean`, or ``scipy.stats.var`` would both work.
+    extend: boolean
+        If True, use the statistics returned by ``stat_funcs`` in addition to, rather than in place
+        of, the default statistics. This is only meaningful when ``stat_funcs`` is not None.
+    hdi_prob: float, optional
+        Highest density interval to compute. Defaults to 0.94. This is only meaningful when
+        ``stat_funcs`` is None.
+    skipna: bool
+        If true ignores nan values when computing the summary statistics, it does not affect the
+        behaviour of the functions passed to ``stat_funcs``. Defaults to false.
+    labeller : labeller instance, optional
+        Class providing the method `make_label_flat` to generate the labels in the plot titles.
+        For more details on ``labeller`` usage see :ref:`label_guide`
+    credible_interval: float, optional
+        deprecated: Please see hdi_prob
+    order
+        deprecated: order is now ignored.
+    index_origin
+        deprecated: index_origin is now ignored, modify the coordinate values to change the
+        value used in summary.
+
+    Returns
+    -------
+    data: obj
+        Any object that can be converted to an :class:`arviz.InferenceData` object
+        Refer to documentation of :func:`arviz.convert_to_dataset` for details
+    var_names: list
+        Names of variables to include in summary. Prefix the variables by ``~`` when you
+        want to exclude them from the summary: `["~beta"]` instead of `["beta"]` (see
+        examples below).
+    filter_vars: {None, "like", "regex"}, optional, default=None
+        If `None` (default), interpret var_names as the real variables names. If "like",
+        interpret var_names as substrings of the real variables names. If "regex",
+        interpret var_names as regular expressions on the real variables names. A la
+        ``pandas.filter``.
+    coords: Dict[str, List[Any]], optional
+        Coordinate subset for which to calculate the summary.
+    group: str
+        Select a group for summary. Defaults to "posterior", "prior" or first group
+        in that order, depending what groups exists.
+    fmt: {'wide', 'long', 'xarray'}
+        Return format is either pandas.DataFrame {'wide', 'long'} or xarray.Dataset {'xarray'}.
+    kind: {'all', 'stats', 'diagnostics'}
+        Whether to include the `stats`: `mean`, `sd`, `hdi_3%`, `hdi_97%`, or the `diagnostics`:
+        `mcse_mean`, `mcse_sd`, `ess_bulk`, `ess_tail`, and `r_hat`. Default to include `all` of
+        them.
+    round_to: int
+        Number of decimals used to round results. Defaults to 2. Use "none" to return raw numbers.
+    circ_var_names: list
+        A list of circular variables to compute circular stats for
+    stat_focus : str, default "mean"
+        Select the focus for summary.
+    stat_funcs: dict
+        A list of functions or a dict of functions with function names as keys used to calculate
+        statistics. By default, the mean, standard deviation, simulation standard error, and
+        highest posterior density intervals are included.
+
+        The functions will be given one argument, the samples for a variable as an nD array,
+        The functions should be in the style of a ufunc and return a single number. For example,
+        :func:`numpy.mean`, or ``scipy.stats.var`` would both work.
+    extend: boolean
+        If True, use the statistics returned by ``stat_funcs`` in addition to, rather than in place
+        of, the default statistics. This is only meaningful when ``stat_funcs`` is not None.
+    hdi_prob: float, optional
+        Highest density interval to compute. Defaults to 0.94. This is only meaningful when
+        ``stat_funcs`` is None.
+    skipna: bool
+        If true ignores nan values when computing the summary statistics, it does not affect the
+        behaviour of the functions passed to ``stat_funcs``. Defaults to false.
+    labeller : labeller instance, optional
+        Class providing the method `make_label_flat` to generate the labels in the plot titles.
+        For more details on ``labeller`` usage see :ref:`label_guide`
+    credible_interval: float, optional
+        deprecated: Please see hdi_prob
+    order
+        deprecated: order is now ignored.
+    index_origin
+        deprecated: index_origin is now ignored, modify the coordinate values to change the
+        value used in summary.
+    """
+
+    if coords is None:
+        coords = {}
+
+    if index_origin is not None:
+        warnings.warn(
+            "index_origin has been deprecated. summary now shows coordinate values, "
+            "to change the label shown, modify the coordinate values before calling summary",
+            DeprecationWarning,
+        )
+        index_origin = rcParams["data.index_origin"]
+    if labeller is None:
+        labeller = BaseLabeller()
+    if hdi_prob is None:
+        hdi_prob = rcParams["stats.ci_prob"]
+    elif not 1 >= hdi_prob > 0:
+        raise ValueError("The value of hdi_prob should be in the interval (0, 1]")
+
+    if isinstance(data, InferenceData):
+        if group is None:
+            if not data.groups():
+                raise TypeError("InferenceData does not contain any groups")
+            if "posterior" in data:
+                dataset = data["posterior"]
+            elif "prior" in data:
+                dataset = data["prior"]
+            else:
+                warnings.warn(f"Selecting first found group: {data.groups()[0]}")
+                dataset = data[data.groups()[0]]
+        elif group in data.groups():
+            dataset = data[group]
+        else:
+            raise TypeError(f"InferenceData does not contain group: {group}")
+    else:
+        dataset = convert_to_dataset(data, group="posterior")
+    var_names = _var_names(var_names, dataset, filter_vars)
+    dataset = dataset if var_names is None else dataset[var_names]
+    dataset = get_coords(dataset, coords)
+
+    fmt_group = ("wide", "long", "xarray")
+    if not isinstance(fmt, str) or (fmt.lower() not in fmt_group):
+        raise TypeError(f"Invalid format: '{fmt}'. Formatting options are: {fmt_group}")
+
+    kind_group = ("all", "stats", "diagnostics")
+    if not isinstance(kind, str) or kind not in kind_group:
+        raise TypeError(f"Invalid kind: '{kind}'. Kind options are: {kind_group}")
+
+    focus_group = ("mean", "median")
+    if not isinstance(stat_focus, str) or (stat_focus not in focus_group):
+        raise TypeError(f"Invalid format: '{stat_focus}'. Focus options are: {focus_group}")
+
+    if stat_focus != "mean" and circ_var_names is not None:
+        raise TypeError(f"Invalid format: Circular stats not supported for '{stat_focus}'")
+
+    if order is not None:
+        warnings.warn(
+            "order has been deprecated. summary now shows coordinate values.", DeprecationWarning
+        )
+    return coords, index_origin, labeller, hdi_prob, dataset, var_names
+
+
 def summary(
     data,
     var_names: Optional[List[str]] = None,
@@ -1330,63 +1530,25 @@ def summary(
     """
     _log.cache = []
 
-    if coords is None:
-        coords = {}
-
-    if index_origin is not None:
-        warnings.warn(
-            "index_origin has been deprecated. summary now shows coordinate values, "
-            "to change the label shown, modify the coordinate values before calling summary",
-            DeprecationWarning,
-        )
-        index_origin = rcParams["data.index_origin"]
-    if labeller is None:
-        labeller = BaseLabeller()
-    if hdi_prob is None:
-        hdi_prob = rcParams["stats.ci_prob"]
-    elif not 1 >= hdi_prob > 0:
-        raise ValueError("The value of hdi_prob should be in the interval (0, 1]")
-
-    if isinstance(data, InferenceData):
-        if group is None:
-            if not data.groups():
-                raise TypeError("InferenceData does not contain any groups")
-            if "posterior" in data:
-                dataset = data["posterior"]
-            elif "prior" in data:
-                dataset = data["prior"]
-            else:
-                warnings.warn(f"Selecting first found group: {data.groups()[0]}")
-                dataset = data[data.groups()[0]]
-        elif group in data.groups():
-            dataset = data[group]
-        else:
-            raise TypeError(f"InferenceData does not contain group: {group}")
-    else:
-        dataset = convert_to_dataset(data, group="posterior")
-    var_names = _var_names(var_names, dataset, filter_vars)
-    dataset = dataset if var_names is None else dataset[var_names]
-    dataset = get_coords(dataset, coords)
-
-    fmt_group = ("wide", "long", "xarray")
-    if not isinstance(fmt, str) or (fmt.lower() not in fmt_group):
-        raise TypeError(f"Invalid format: '{fmt}'. Formatting options are: {fmt_group}")
-
-    kind_group = ("all", "stats", "diagnostics")
-    if not isinstance(kind, str) or kind not in kind_group:
-        raise TypeError(f"Invalid kind: '{kind}'. Kind options are: {kind_group}")
-
-    focus_group = ("mean", "median")
-    if not isinstance(stat_focus, str) or (stat_focus not in focus_group):
-        raise TypeError(f"Invalid format: '{stat_focus}'. Focus options are: {focus_group}")
-
-    if stat_focus != "mean" and circ_var_names is not None:
-        raise TypeError(f"Invalid format: Circular stats not supported for '{stat_focus}'")
-
-    if order is not None:
-        warnings.warn(
-            "order has been deprecated. summary now shows coordinate values.", DeprecationWarning
-        )
+    coords, index_origin, labeller, hdi_prob, dataset, var_names = summary_input_validate(
+        data,
+        var_names,
+        filter_vars,
+        group,
+        fmt,
+        kind,
+        round_to,
+        circ_var_names,
+        stat_focus,
+        stat_funcs,
+        extend,
+        hdi_prob,
+        skipna,
+        labeller,
+        coords,
+        index_origin,
+        order,
+    )
 
     alpha = 1 - hdi_prob
 
